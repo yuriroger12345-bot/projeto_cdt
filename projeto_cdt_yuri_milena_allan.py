@@ -1,13 +1,27 @@
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import filedialog
 import random
 import sqlite3
+import csv
+import os
+import sys
+
+# =========================
+# PYINSTALLER
+# =========================
+
+def caminho_arquivo(nome):
+    pasta = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+    return os.path.join(pasta, nome)
+
+db_path = caminho_arquivo("pontoplay.db")
 
 # =========================
 # BANCO DE DADOS
 # =========================
 
-conn = sqlite3.connect("pontoplay.db")
+conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -51,33 +65,79 @@ ADM_SENHA = "123456"
 
 usuario_atual = ""
 
+# =========================
 # CORES
+# =========================
+
 PRETO = "#0d0d0d"
-AZUL = "#045d98"
-BRANCO = "#ECEBE6"
 AZUL = "#025487"
-CINZA = "#1a1a1a"
 BRANCO = "white"
+CINZA = "#1a1a1a"
+VERDE = "#00ff99"
+
+# =========================
+# EXPORTAR CSV
+# =========================
+
+def exportar_usuarios():
+
+    cursor.execute("""
+    SELECT nome, telefone, email
+    FROM usuarios
+    """)
+
+    usuarios = cursor.fetchall()
+
+    if not usuarios:
+        messagebox.showwarning(
+            "Aviso",
+            "Nenhum usuário cadastrado!"
+        )
+        return
+
+    caminho = filedialog.asksaveasfilename(
+        defaultextension=".csv",
+        filetypes=[("Arquivo CSV", "*.csv")],
+        title="Salvar usuários"
+    )
+
+    if not caminho:
+        return
+
+    with open(caminho, mode="w", newline="", encoding="utf-8") as arquivo:
+
+        writer = csv.writer(arquivo)
+
+        writer.writerow([
+            "Nome",
+            "Telefone",
+            "Email"
+        ])
+
+        for usuario in usuarios:
+            writer.writerow(usuario)
+
+    messagebox.showinfo(
+        "Sucesso",
+        "Usuários exportados com sucesso!"
+    )
 
 # =========================
 # FUNÇÕES
 # =========================
 
-
 def atualizar_creditos():
     label_creditos.config(text=f"💰 CRÉDITOS: {credits}")
-
 
 # =========================
 # PAINEL ADMIN
 # =========================
 
-
 def abrir_painel_admin():
 
     painel = tk.Toplevel(janela)
     painel.title("PAINEL ADM")
-    painel.geometry("500x500")
+    painel.geometry("500x600")
     painel.config(bg=PRETO)
 
     cursor.execute("SELECT * FROM estatisticas WHERE id=1")
@@ -118,11 +178,49 @@ def abrir_painel_admin():
             fg=BRANCO
         ).pack(pady=12)
 
+    btn_exportar = tk.Button(
+        painel,
+        text="📁 EXPORTAR USUÁRIOS",
+        command=exportar_usuarios,
+        bg=AZUL,
+        fg="black",
+        font=("Arial Black", 14, "bold"),
+        relief="flat",
+        cursor="hand2",
+        width=25,
+        height=2
+    )
+
+    btn_exportar.pack(pady=30)
+
+# =========================
+# PLACEHOLDERS
+# =========================
+
+def limpar_placeholder(event, entry, texto):
+    if entry.get() == texto:
+        entry.delete(0, tk.END)
+        entry.config(fg=BRANCO)
+
+def restaurar_placeholder(event, entry, texto):
+    if entry.get() == "":
+        entry.insert(0, texto)
+        entry.config(fg="gray")
+
+def limpar_placeholder_senha(event):
+    if entry_senha.get() == "Senha":
+        entry_senha.delete(0, tk.END)
+        entry_senha.config(fg=BRANCO, show="*")
+
+def restaurar_placeholder_senha(event):
+    if entry_senha.get() == "":
+        entry_senha.config(show="")
+        entry_senha.insert(0, "Senha")
+        entry_senha.config(fg="gray")
 
 # =========================
 # CADASTRO
 # =========================
-
 
 def cadastrar():
 
@@ -133,8 +231,15 @@ def cadastrar():
     email = entry_email.get()
     senha = entry_senha.get()
 
-    if not nome or not telefone or not email or not senha:
-        messagebox.showwarning("Erro", "Preencha todos os campos!")
+    if not nome or nome == "Nome" or \
+       not telefone or telefone == "Telefone" or \
+       not email or email == "E-mail" or \
+       not senha or senha == "Senha":
+
+        messagebox.showwarning(
+            "Erro",
+            "Preencha todos os campos!"
+        )
         return
 
     if email == ADM_EMAIL and senha == ADM_SENHA:
@@ -169,25 +274,19 @@ def cadastrar():
     tela_cadastro.pack_forget()
     tela_jogo.pack(fill="both", expand=True)
 
-
 # =========================
-# HOVER BOTÃO
+# HOVER
 # =========================
-
 
 def hover_entrar(e):
-    btn_girar['bg'] = '#00ff99'
-
-
+    btn_girar['bg'] = VERDE
 
 def hover_sair(e):
     btn_girar['bg'] = AZUL
 
-
 # =========================
 # GIRAR SLOT
 # =========================
-
 
 def girar():
 
@@ -224,7 +323,6 @@ def girar():
     WHERE id=1
     """)
 
-    # JACKPOT
     if resultado[0] == resultado[1] == resultado[2]:
 
         credits += 100
@@ -237,10 +335,9 @@ def girar():
 
         status.config(
             text="🎉 JACKPOT +100",
-            fg=AZUL
+            fg=VERDE
         )
 
-    # DOIS IGUAIS
     elif (
         resultado[0] == resultado[1]
         or resultado[0] == resultado[2]
@@ -258,35 +355,29 @@ def girar():
 
         status.config(
             text="❌ VOCÊ PERDEU",
-            fg=AZUL
+            fg="red"
         )
 
     conn.commit()
 
     atualizar_creditos()
 
-
 # =========================
-# JANELA PRINCIPAL
+# JANELA
 # =========================
 
 janela = tk.Tk()
 
-janela.title("🎰 PONTOPLAY FORTUNE ")
+janela.title("🎰 PONTOPLAY FORTUNE")
 janela.geometry("1200x800")
 janela.config(bg=PRETO)
 
-
 # =========================
-# TELA LOGIN
+# LOGIN
 # =========================
-
 
 tela_cadastro = tk.Frame(janela, bg=PRETO)
 tela_cadastro.pack(fill="both", expand=True)
-
-
-# TÍTULO
 
 titulo = tk.Label(
     tela_cadastro,
@@ -298,10 +389,6 @@ titulo = tk.Label(
 
 titulo.pack(pady=40)
 
-
-# ENTRADAS
-
-
 def criar_entry(texto):
 
     entry = tk.Entry(
@@ -309,25 +396,50 @@ def criar_entry(texto):
         width=35,
         font=("Arial", 18),
         bg=CINZA,
-        fg=BRANCO,
+        fg="gray",
         insertbackground=BRANCO,
         relief="flat",
         justify="center"
     )
 
     entry.pack(pady=12, ipady=10)
+
     entry.insert(0, texto)
 
-    return entry
+    entry.bind(
+        "<FocusIn>",
+        lambda e: limpar_placeholder(e, entry, texto)
+    )
 
+    entry.bind(
+        "<FocusOut>",
+        lambda e: restaurar_placeholder(e, entry, texto)
+    )
+
+    return entry
 
 entry_nome = criar_entry("Nome")
 entry_telefone = criar_entry("Telefone")
 entry_email = criar_entry("E-mail")
-entry_senha = criar_entry("Senha")
 
+entry_senha = tk.Entry(
+    tela_cadastro,
+    width=35,
+    font=("Arial", 18),
+    bg=CINZA,
+    fg="gray",
+    insertbackground=BRANCO,
+    relief="flat",
+    justify="center",
+    show=""
+)
 
-# BOTÃO LOGIN
+entry_senha.pack(pady=12, ipady=10)
+
+entry_senha.insert(0, "Senha")
+
+entry_senha.bind("<FocusIn>", limpar_placeholder_senha)
+entry_senha.bind("<FocusOut>", restaurar_placeholder_senha)
 
 btn_cadastro = tk.Button(
     tela_cadastro,
@@ -344,16 +456,11 @@ btn_cadastro = tk.Button(
 
 btn_cadastro.pack(pady=30)
 
-
 # =========================
-# TELA JOGO
+# JOGO
 # =========================
-
 
 tela_jogo = tk.Frame(janela, bg=PRETO)
-
-
-# MENU SUPERIOR
 
 menu_topo = tk.Frame(
     tela_jogo,
@@ -362,7 +469,6 @@ menu_topo = tk.Frame(
 )
 
 menu_topo.pack(fill="x")
-
 
 usuario_label = tk.Label(
     menu_topo,
@@ -374,23 +480,6 @@ usuario_label = tk.Label(
 
 usuario_label.pack(side="left", padx=20)
 
-
-btn_deposito = tk.Button(
-    menu_topo,
-    text="💸 DEPOSITAR",
-    bg=AZUL,
-    fg="black",
-    font=("Arial Black", 12, "bold"),
-    relief="flat",
-    cursor="hand2"
-)
-
-btn_deposito.pack(side="right", padx=20, pady=10)
-
-
-# TÍTULO JOGO
-
-
 titulo_jogo = tk.Label(
     tela_jogo,
     text="🎰 SLOT MACHINE 🎰",
@@ -401,19 +490,12 @@ titulo_jogo = tk.Label(
 
 titulo_jogo.pack(pady=30)
 
-
-# FRAME SLOTS
-
 frame_slots = tk.Frame(
     tela_jogo,
     bg=PRETO
 )
 
 frame_slots.pack(pady=40)
-
-
-# SLOT LABELS
-
 
 def criar_slot(coluna):
 
@@ -433,13 +515,9 @@ def criar_slot(coluna):
 
     return label
 
-
 label1 = criar_slot(0)
 label2 = criar_slot(1)
 label3 = criar_slot(2)
-
-
-# BOTÃO GIRAR
 
 btn_girar = tk.Button(
     tela_jogo,
@@ -459,9 +537,6 @@ btn_girar.pack(pady=30)
 btn_girar.bind("<Enter>", hover_entrar)
 btn_girar.bind("<Leave>", hover_sair)
 
-
-# STATUS
-
 status = tk.Label(
     tela_jogo,
     text="🔥 Boa sorte!",
@@ -472,9 +547,6 @@ status = tk.Label(
 
 status.pack(pady=15)
 
-
-# CRÉDITOS
-
 label_creditos = tk.Label(
     tela_jogo,
     text=f"💰 CRÉDITOS: {credits}",
@@ -484,10 +556,5 @@ label_creditos = tk.Label(
 )
 
 label_creditos.pack(pady=20)
-
-
-# =========================
-# INICIAR
-# =========================
 
 janela.mainloop()
