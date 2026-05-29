@@ -8,11 +8,15 @@ import os
 import sys
 
 # =========================
-# PYINSTALLER
+# PYINSTALLER / CAMINHO
 # =========================
 
 def caminho_arquivo(nome):
-    pasta = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+    if getattr(sys, 'frozen', False):
+        pasta = os.path.dirname(sys.executable)
+    else:
+        pasta = os.path.dirname(os.path.abspath(__file__))
+
     return os.path.join(pasta, nome)
 
 db_path = caminho_arquivo("pontoplay.db")
@@ -556,5 +560,19 @@ label_creditos = tk.Label(
 )
 
 label_creditos.pack(pady=20)
+
+# =========================
+# FECHAR APP
+# =========================
+
+def fechar_programa():
+    conn.close()
+    janela.destroy()
+
+janela.protocol("WM_DELETE_WINDOW", fechar_programa)
+
+# =========================
+# INICIAR
+# =========================
 
 janela.mainloop()
